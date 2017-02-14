@@ -3,8 +3,6 @@ const sqlite = require('sqlite'),
       express = require('express'),
       app = express();
 
-const { testFunc, selectStuff } = require('./models/movies.js')
-
 const { PORT=3000, NODE_ENV='development', DB_PATH='./db/database.db' } = process.env;
 
 const db = new Sequelize('main', 'null', 'null', {
@@ -24,27 +22,43 @@ Promise.resolve()
   .catch((err) => { if (NODE_ENV === 'development') console.error(err.stack); });
 
 // ROUTES
-app.get('/films/:id/recommendations/:limit', getFilmRecommendations, (req, res) => res.json(res.response));
+app.get('/films/:id/recommendations/:limit', getFilmInfo, getFilmRecommendations, (req, res, next) => res.json(res.test));
 
 // ROUTE HANDLER
-function getFilmRecommendations(req, res, next) {
+
+function getFilmInfo(req, res, next) {
   db.query(
     `SELECT * FROM films
-    LEFT JOIN genres ON films.genre_id = genres.id
-    LEFT JOIN artist_films ON films.id = artist_films.film_id
-    WHERE films.id = ${req.params.id}
-    LIMIT ${req.params.limit}`,
+    WHERE films.id = ${req.params.id}`,
     {type:Sequelize.QueryTypes.Select})
     .then((data) => {
-      console.log(data)
-      res.response = data
-      next();
+      data.limit = `${req.params.limit}`
+      console.log('data', data)
+      res.test = data
+      getFilmRecommendations(data);
     })
   .catch(err => {
     console.log(err);
     next();
   })
+}
 
+function getFilmRecommendations(req, res, next) {
+  let query = req[0][0]
+  console.log('query', query)
+  db.query(
+    `SELECT * FROM films
+    LEFT JOIN genres ON films.genre_id = genres.id
+    LEFT JOIN artist_films ON films.id = artist_films.film_id
+    WHERE ${query.genre_id} = genres.id
+    LIMIT ${req.limit}`,
+    {type:Sequelize.QueryTypes.Select})
+    .then((response) => {
+      console.log('res',response)
+    })
+  .catch(err => {
+    console.log(err);
+  })
 }
 
 module.exports = app;
